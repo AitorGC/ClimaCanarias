@@ -1,0 +1,8 @@
+{
+  "name": "Clima en Tiempo Real",
+  "description": "Aplicación de clima minimalista en tiempo real con radar de tormentas, notificaciones personalizadas, favoritos sincronizados en Firebase y modo AMOLED automático.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

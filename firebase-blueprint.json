@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "UserPreference": {
+      "title": "UserPreference",
+      "description": "User weather preferences and favorite cities",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "The UID of the user who owns this preference"
+        },
+        "cities": {
+          "type": "array",
+          "description": "List of favorite cities which can contain serialized objects"
+        },
+        "notificationsEnabled": {
+          "type": "boolean"
+        },
+        "tempUnit": {
+          "type": "string",
+          "enum": ["C", "F"]
+        },
+        "darkModeSetting": {
+          "type": "string",
+          "enum": ["auto", "dark", "light"]
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "ownerId",
+        "cities",
+        "notificationsEnabled",
+        "tempUnit",
+        "darkModeSetting",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "user_preferences/{userId}": {
+      "schema": "UserPreference",
+      "description": "User preferences stored at document ID matching their UID"
+    }
+  }
+}

@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidUserPreference(data) {
+      return data.ownerId is string 
+        && data.ownerId == request.auth.uid
+        && data.cities is list
+        && data.cities.size() <= 20
+        && data.notificationsEnabled is bool
+        && data.tempUnit is string
+        && (data.tempUnit == "C" || data.tempUnit == "F")
+        && data.darkModeSetting is string
+        && (data.darkModeSetting == "auto" || data.darkModeSetting == "dark" || data.darkModeSetting == "light")
+        && data.updatedAt is timestamp;
+    }
+
+    // Match statement for user preferences collection
+    match /user_preferences/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) 
+        && isValidUserPreference(incoming()) 
+        && incoming().updatedAt == request.time;
+      allow update: if isOwner(userId) 
+        && isValidUserPreference(incoming()) 
+        && incoming().updatedAt == request.time 
+        && incoming().ownerId == existing().ownerId;
+      allow delete: if isOwner(userId);
+    }
+  }
+}
