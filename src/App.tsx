@@ -304,7 +304,7 @@ export default function App() {
 
   const formatTemperature = (celsius: number) => {
     if (tempUnit === 'F') {
-      return `${Math.round((celsius * 9) / 5 + 32)}°F`;
+      return `${Math.round((celsius * 9) / 5 + 32)}F`;
     }
     return `${Math.round(celsius)}°C`;
   };
@@ -328,13 +328,13 @@ export default function App() {
               <h1 className={`font-display text-3xl md:text-4xl tracking-tight leading-none ${
                 activeDarkMode ? 'text-white' : 'text-brand-blue font-bold'
               }`}>
-                {currentCity.name}, {currentCity.country === 'España' || currentCity.country === 'Spain' ? 'ES' : currentCity.country === 'Reino Unido' || currentCity.country === 'United Kingdom' ? 'UK' : currentCity.country.slice(0, 2).toUpperCase()}
+                {currentCity.name}
               </h1>
             </div>
             <p className={`text-[11px] md:text-xs font-mono uppercase tracking-widest mt-2 ${
               activeDarkMode ? 'text-white/40' : 'text-brand-blue/80 font-bold'
             }`}>
-              {weather ? `${new Date().toLocaleDateString('es-ES', { weekday: 'long', month: 'short', day: 'numeric' })} • Sincronización: ${weather.time}` : 'VIGILANCIA METEOROLÓGICA REGIONAL'}
+              ClimaCanarias by Aitor Santana
             </p>
           </div>
 

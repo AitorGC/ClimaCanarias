@@ -117,8 +117,8 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
 
   try {
     // Collect ground truth high resolution parameters and air quality parameters in parallel
-    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,showers,snowfall,weather_code,cloud_cover,surface_pressure,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation_probability,weather_code,wind_speed_10m,wind_direction_10m,visibility&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max&timezone=auto&forecast_days=7`;
-    const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${city.lat}&longitude=${city.lon}&current=european_aqi,us_aqi,pm2_5,pm10,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone`;
+    const weatherUrl = `/api/weather?lat=${city.lat}&lon=${city.lon}`;
+    const aqiUrl = `/api/aqi?lat=${city.lat}&lon=${city.lon}`;
 
     const [weatherRes, aqiRes] = await Promise.all([
       fetch(weatherUrl).then(res => {
