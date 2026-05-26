@@ -177,7 +177,7 @@ export default function TrendChart({ hourly, tempUnit, activeDarkMode }: TrendCh
             activeDarkMode ? 'text-teal-400' : 'text-brand-blue'
           }`}>
             <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse"></span>
-            TENDENCIA HORARIA (CONSENSO)
+            TENDENCIA HORARIA
           </h4>
           <p className={`text-[10px] mt-0.5 ${activeDarkMode ? 'text-white/35' : 'text-slate-400'}`}>
             Intervalos en alta resolución para las próximas 12 horas

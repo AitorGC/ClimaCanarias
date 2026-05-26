@@ -6,19 +6,33 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
 
-const config = {
-  ...firebaseConfig,
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
-};
+let app: any = null;
+let db: any = null;
+let auth: any = null;
+let googleProvider: any = null;
 
-const app = initializeApp(config);
+function getFirebase() {
+  if (!app) {
+    const firebaseConfig = {
+      apiKey: (import.meta as any).env.VITE_FIREBASE_API_KEY,
+      authDomain: (import.meta as any).env.VITE_FIREBASE_AUTH_DOMAIN,
+      projectId: (import.meta as any).env.VITE_FIREBASE_PROJECT_ID,
+      storageBucket: (import.meta as any).env.VITE_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: (import.meta as any).env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+      appId: (import.meta as any).env.VITE_FIREBASE_APP_ID,
+    };
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    auth = getAuth(app);
+    googleProvider = new GoogleAuthProvider();
+  }
+  return { db, auth, googleProvider };
+}
 
-// CRITICAL: The app will break without specifying the firestoreDatabaseId in the second parameter
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
+export const getDb = () => getFirebase().db;
+export const getAuthSvc = () => getFirebase().auth;
+export const getGoogleProvider = () => getFirebase().googleProvider;
 
 export enum OperationType {
   CREATE = 'create',
@@ -46,14 +60,15 @@ export interface FirestoreErrorInfo {
  * Handles Firestore errors and raises standard compliant error objects
  */
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const authSvc = getAuthSvc();
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid || null,
-      email: auth.currentUser?.email || null,
-      emailVerified: auth.currentUser?.emailVerified || null,
-      isAnonymous: auth.currentUser?.isAnonymous || null,
-      tenantId: auth.currentUser?.tenantId || null,
+      userId: authSvc.currentUser?.uid || null,
+      email: authSvc.currentUser?.email || null,
+      emailVerified: authSvc.currentUser?.emailVerified || null,
+      isAnonymous: authSvc.currentUser?.isAnonymous || null,
+      tenantId: authSvc.currentUser?.tenantId || null,
     },
     operationType,
     path,
@@ -67,7 +82,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
  */
 export async function loginWithGoogle() {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
+    const result = await signInWithPopup(getAuthSvc(), getGoogleProvider());
     return result.user;
   } catch (error) {
     console.error('Error during Google authentication: ', error);
@@ -80,9 +95,10 @@ export async function loginWithGoogle() {
  */
 export async function logout() {
   try {
-    await signOut(auth);
+    await signOut(getAuthSvc());
   } catch (error) {
     console.error('Error signing out: ', error);
     throw error;
   }
 }
+

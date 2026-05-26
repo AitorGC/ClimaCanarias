@@ -1,5 +1,5 @@
 {
-  "name": "Clima en Tiempo Real",
+  "name": "ClimaCanarias",
   "description": "Aplicación de clima minimalista en tiempo real con radar de tormentas, notificaciones personalizadas, favoritos sincronizados en Firebase y modo AMOLED automático.",
   "requestFramePermissions": [
     "geolocation"

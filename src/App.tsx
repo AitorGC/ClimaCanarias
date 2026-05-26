@@ -11,7 +11,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-import { db, auth, loginWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
+import { getDb, getAuthSvc, loginWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
 import { City, CurrentWeather, NotificationMessage, WeatherCondition } from './types';
 import { fetchWeather } from './weatherService';
 import WeatherAnimations from './components/WeatherAnimations';
@@ -125,13 +125,13 @@ export default function App() {
 
   // Auth synchronization listener
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    const unsubscribe = getAuthSvc().onAuthStateChanged(async (user) => {
       if (user) {
         setIsAuthenticated(true);
         setCurrentUser(user);
         
         // Fetch existing cloud profiles from Firestore Database
-        const userRef = doc(db, 'user_preferences', user.uid);
+        const userRef = doc(getDb(), 'user_preferences', user.uid);
         try {
           const docSnap = await getDoc(userRef);
           if (docSnap.exists()) {
@@ -172,7 +172,7 @@ export default function App() {
   // Write changes back to Firestore upon preferences updates (only if loaded & authenticated)
   useEffect(() => {
     if (isAuthenticated && currentUser && isCloudLoadFinishedRef.current) {
-      const userRef = doc(db, 'user_preferences', currentUser.uid);
+      const userRef = doc(getDb(), 'user_preferences', currentUser.uid);
       const writePreferences = async () => {
         try {
           await setDoc(userRef, {
@@ -197,10 +197,15 @@ export default function App() {
   // Handle fetching weather forecasts
   const getWeatherData = async (city: City) => {
     setIsLoading(true);
+    // Clearing weather data while fetching to avoid displaying old city's data
+    setWeather(null); 
     setErrorMsg(null);
+    console.log(`[App] Fetching weather data for: ${city.name}`);
     try {
       const freshWeather = await fetchWeather(city);
+      console.log(`[App] Fresh weather data received for: ${city.name}`, freshWeather);
       setWeather(freshWeather);
+      console.log(`[App] Successfully updated weather data for: ${city.name}`);
       
       // Inject new severe alerts into notifications center logging if any
       freshWeather.alerts.forEach((alert) => {
@@ -329,7 +334,7 @@ export default function App() {
             <p className={`text-[11px] md:text-xs font-mono uppercase tracking-widest mt-2 ${
               activeDarkMode ? 'text-white/40' : 'text-brand-blue/80 font-bold'
             }`}>
-              {weather ? `${new Date().toLocaleDateString('es-ES', { weekday: 'long', month: 'short', day: 'numeric' })} • ${weather.time}` : 'VIGILANCIA METEOROLÓGICA REGIONAL'}
+              {weather ? `${new Date().toLocaleDateString('es-ES', { weekday: 'long', month: 'short', day: 'numeric' })} • Sincronización: ${weather.time}` : 'VIGILANCIA METEOROLÓGICA REGIONAL'}
             </p>
           </div>
 
@@ -689,7 +694,7 @@ export default function App() {
 
           {/* SECCIONES ESPECIALIZADAS EN EL CLIMA DE CANARIAS */}
           <div className="space-y-4">
-            {/* Sec 1. RESUMEN Y ALERTAS DE CONSENSO */}
+            {/* Sec 1. RESUMEN Y ALERTAS DE  */}
             <motion.div
               whileHover={{ 
                 y: -4, 
@@ -711,7 +716,7 @@ export default function App() {
                     activeDarkMode ? 'text-teal-400' : 'text-brand-blue font-bold'
                   }`}>
                     <span className={`w-2 h-2 rounded-full animate-pulse ${activeDarkMode ? 'bg-teal-400' : 'bg-brand-yellow'}`}></span>
-                    1. RESUMEN Y ALERTAS (CONSENSO REGIONAL)
+                    1. RESUMEN Y ALERTAS (REGIONAL)
                   </h3>
                   <p className={`text-[10.5px] mt-1 ${activeDarkMode ? 'text-white/40' : 'text-slate-500'}`}>Acoplamiento unificado AEMET, OpenWeatherMap y Open-Meteo</p>
                 </div>
@@ -725,11 +730,11 @@ export default function App() {
                 )}
               </div>
 
-              {/* Frase General del Consenso */}
+              {/* Frase General */}
               <div className={`border rounded-2xl p-4 mb-6 ${
                 activeDarkMode ? 'bg-white/[0.03] border-white/5' : 'bg-brand-yellow/15 border-brand-yellow/45 shadow-xs'
               }`}>
-                <span className={`text-[9.5px] font-mono block mb-1 uppercase tracking-wider ${activeDarkMode ? 'text-white/40' : 'text-brand-blue/80 font-bold'}`}>PREVISIÓN DE CONSENSO</span>
+                <span className={`text-[9.5px] font-mono block mb-1 uppercase tracking-wider ${activeDarkMode ? 'text-white/40' : 'text-brand-blue/80 font-bold'}`}>PREVISIÓN</span>
                 <p className={`text-sm font-semibold leading-relaxed ${activeDarkMode ? 'text-zinc-200' : 'text-slate-805'}`}>
                   {weather?.fraseGeneral || "Combinando modelos de previsión regional..."}
                 </p>
@@ -914,6 +919,7 @@ export default function App() {
         {/* RIGHT SIDEBAR COLUMN OF BENTO GRID (Favorites & notifications) */}
         <div id="sidebar-widgets-section" className="col-span-1 space-y-4">
           
+
           <FavoriteCitiesManager
             favorites={favorites}
             currentCity={currentCity}
@@ -925,15 +931,7 @@ export default function App() {
             activeDarkMode={activeDarkMode}
           />
 
-          <NotificationCenter
-            notifications={notifications}
-            onAddNotification={handleAddNotificationMessage}
-            onClearNotifications={handleClearNotifications}
-            onGrantGeolocation={handleSelectCity}
-            activeDarkMode={activeDarkMode}
-          />
-
-          {/* 3. PRÓXIMOS 3 DÍAS (CONSENSO DE MODELOS) */}
+          {/* 3. PRÓXIMOS 3 DÍAS */}
           <motion.div
             whileHover={{ 
               y: -4, 
@@ -951,7 +949,7 @@ export default function App() {
               activeDarkMode ? 'text-teal-400' : 'text-brand-blue font-bold'
             }`}>
               <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${activeDarkMode ? 'bg-teal-400' : 'bg-brand-yellow'}`}></span>
-              3. PRÓXIMOS 3 DÍAS (CONSENSO)
+              3. PRÓXIMOS 3 DÍAS ()
             </h3>
             
             <div className="space-y-3">
@@ -1002,6 +1000,14 @@ export default function App() {
               })}
             </div>
           </motion.div>
+
+          <NotificationCenter
+            notifications={notifications}
+            onAddNotification={handleAddNotificationMessage}
+            onClearNotifications={handleClearNotifications}
+            onGrantGeolocation={handleSelectCity}
+            activeDarkMode={activeDarkMode}
+          />
 
         </div>
       </main>

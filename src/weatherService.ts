@@ -5,8 +5,8 @@
 
 import { City, CurrentWeather, WeatherCondition, WeatherAlert, AemetAlert, HourlySlot6h, DailyForecast3d, ForecastDay } from './types';
 
-// Standard fallback cache lifetime: 15 minutes
-const CACHE_LIFETIME = 15 * 60 * 1000;
+// Standard fallback cache lifetime: 10 minutes
+const CACHE_LIFETIME = 10 * 60 * 1000;
 
 /**
  * Maps Open-Meteo WMO weather codes to our simplified WeatherCondition
@@ -215,18 +215,18 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
     
     if (isCanarias) {
       if (calimaRating === 'Alto') {
-        fraseGeneral = `Consenso AEMET/OWM/Meteo: Episodio de fuerte calima con intrusión de polvo sahariano. Temperaturas elevadas y visibilidad reducida.`;
+        fraseGeneral = `AEMET/OWM/Meteo: Episodio de fuerte calima con intrusión de polvo sahariano. Temperaturas elevadas y visibilidad reducida.`;
       } else if (calimaRating === 'Moderado') {
-        fraseGeneral = `Consenso AEMET/OWM/Meteo: Ambiente cálido con calima moderada en medianías. Vientos flojos del este.`;
+        fraseGeneral = `AEMET/OWM/Meteo: Ambiente cálido con calima moderada en medianías. Vientos flojos del este.`;
       } else if (isAlisios) {
-        fraseGeneral = `Consenso AEMET/OWM/Meteo: Régimen estable de vientos alisios (del ${getWindDirectionText(windDirectionDeg)}). Nubosidad de retención al norte.`;
+        fraseGeneral = `AEMET/OWM/Meteo: Régimen estable de vientos alisios (del ${getWindDirectionText(windDirectionDeg)}). Nubosidad de retención al norte.`;
       } else if (condition === 'rainy') {
-        fraseGeneral = `Consenso AEMET/OWM/Meteo: Nubosidad de evolución húmeda con lluvias débiles a moderadas, más frecuentes en laderas orientadas al norte.`;
+        fraseGeneral = `AEMET/OWM/Meteo: Nubosidad de evolución húmeda con lluvias débiles a moderadas, más frecuentes en laderas orientadas al norte.`;
       } else {
-        fraseGeneral = `Consenso AEMET/OWM/Meteo: Cielos mayormente despejados con temperaturas estables. Alisios moderados templando el litoral.`;
+        fraseGeneral = `AEMET/OWM/Meteo: Cielos mayormente despejados con temperaturas estables. Alisios moderados templando el litoral.`;
       }
     } else {
-      fraseGeneral = `Consenso AEMET/OWM/Meteo: Previsiones estables coincidentes. Presión barométrica firme de ${pressure.toFixed(0)} hPa con vientos del ${getWindDirectionText(windDirectionDeg)}.`;
+      fraseGeneral = `AEMET/OWM/Meteo: Previsiones estables coincidentes. Presión barométrica firme de ${pressure.toFixed(0)} hPa con vientos del ${getWindDirectionText(windDirectionDeg)}.`;
     }
 
     // --- AEMET ALERTS GENERATOR (Tabla de Alertas AEMET: Nivel, duración, texto, icono: 💨, 🌊, 🌋) ---
@@ -357,7 +357,7 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
         description: al.texto,
         severity: al.nivel === 'Rojo' ? 'extreme' : al.nivel === 'Naranja' ? 'severe' : 'moderate',
         time: 'Hoy',
-        sender: 'Consenso AEMET / Protección Civil'
+        sender: 'AEMET / Protección Civil'
       });
     });
 
