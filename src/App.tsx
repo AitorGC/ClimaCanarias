@@ -569,7 +569,12 @@ export default function App() {
             }`}
           >
             {/* Ambient dynamic micro animation */}
-            {weather && <WeatherAnimations condition={weather.condition} />}
+            {weather && (
+              <WeatherAnimations 
+                condition={weather.condition} 
+                calimaRating={weather.hourly6h && weather.hourly6h.length > 0 ? weather.hourly6h[0].calima : 'Bajo'} 
+              />
+            )}
 
             {/* Floating refresh button positioned absolute in the top right corner */}
             <button

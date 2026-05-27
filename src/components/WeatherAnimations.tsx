@@ -9,10 +9,22 @@ import { WeatherCondition } from '../types';
 
 interface WeatherAnimationsProps {
   condition: WeatherCondition;
+  calimaRating?: 'Bajo' | 'Moderado' | 'Alto';
 }
 
-export default function WeatherAnimations({ condition }: WeatherAnimationsProps) {
+export default function WeatherAnimations({ condition, calimaRating }: WeatherAnimationsProps) {
   // Memoize arrays for static elements to preserve memoization and prevent memory leaks/re-renders
+  const sandParticles = useMemo(() => {
+    return Array.from({ length: 28 }).map((_, i) => ({
+      id: i,
+      top: `${Math.random() * 100}%`,
+      delay: Math.random() * 5,
+      duration: 4 + Math.random() * 5,
+      size: 1.5 + Math.random() * 3,
+      opacity: 0.25 + Math.random() * 0.45,
+    }));
+  }, [calimaRating]);
+
   const rainDrops = useMemo(() => {
     return Array.from({ length: 24 }).map((_, i) => ({
       id: i,
@@ -280,6 +292,40 @@ export default function WeatherAnimations({ condition }: WeatherAnimationsProps)
                 duration: line.duration,
                 repeat: Infinity,
                 ease: 'easeInOut',
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* 8. CALIMA: Warm Saharan dust and orange-golden micro particles */}
+      {(calimaRating === 'Moderado' || calimaRating === 'Alto') && (
+        <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
+          {/* Ambient yellow/amber light fog */}
+          <div className="absolute inset-0 bg-amber-500/[0.04] mix-blend-color-burn blur-md animate-pulse duration-[6000ms]" />
+          {sandParticles.map((pt) => (
+            <motion.div
+              key={`sand-particle-${pt.id}`}
+              id={`sand-pt-elem-${pt.id}`}
+              className={`absolute rounded-full ${
+                calimaRating === 'Alto' ? 'bg-amber-600/50' : 'bg-amber-400/40'
+              }`}
+              style={{
+                top: pt.top,
+                width: `${pt.size}px`,
+                height: `${pt.size}px`,
+                opacity: pt.opacity,
+                left: '-20px',
+              }}
+              animate={{
+                left: ['-5%', '105%'],
+                y: [0, (pt.id % 2 === 0 ? 15 : -15), 0],
+              }}
+              transition={{
+                delay: pt.delay,
+                duration: pt.duration * (calimaRating === 'Alto' ? 0.75 : 1),
+                repeat: Infinity,
+                ease: 'linear',
               }}
             />
           ))}
