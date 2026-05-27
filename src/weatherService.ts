@@ -407,6 +407,46 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
       return parsed.data;
     }
     
-    throw error;
+    // --- GRACEFUL DEGRADATION: MOCK FALLBACK WHEN API IS RATE-LIMITED/BLOCKED ---
+    console.warn(`[Network] Open-Meteo API failed and no cache exists for ${city.name}. Generating synthetic fallback to prevent UI crash.`);
+    
+    const mockHourly: HourlySlot6h[] = Array.from({ length: 6 }).map((_, i) => {
+      const d = new Date(); d.setHours(d.getHours() + i);
+      return {
+        hora: d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+        temp: 22 + (i % 2),
+        sensacion: 23,
+        vientoVel: 15,
+        vientoDir: 'Nordeste',
+        humedad: 60,
+        precipProb: 0,
+        calima: 'Bajo',
+        visibilidad: 15
+      };
+    });
+
+    const mockData: CurrentWeather = {
+      temp: 22.5,
+      tempMax: 26.0,
+      tempMin: 18.2,
+      condition: 'sunny',
+      description: 'Condiciones Simuladas (Modo Desconectado)',
+      humidity: 55,
+      windSpeed: 20,
+      pressure: 1015,
+      uvIndex: 7,
+      alerts: [],
+      time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+      hourly: [],
+      daily: [],
+      fraseGeneral: 'Aviso: La conexión con Open-Meteo falló (posible bloqueo por Rate-Limit). Mostrando datos locales de respaldo.',
+      indiceConfianza: 40,
+      alertasAemet: [],
+      hourly6h: mockHourly,
+      daily3d: [],
+      aqi: { usAqi: 25, europeanAqi: 30, pm2_5: 5, pm10: 10, no2: 5, so2: 1, o3: 35, co: 200 }
+    };
+    
+    return mockData;
   }
 }

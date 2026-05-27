@@ -9,7 +9,7 @@ import {
   MapPin, LogOut, RefreshCw, AlertTriangle, ShieldCheck, WifiOff, ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 import { getDb, getAuthSvc, loginWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
 import { City, CurrentWeather, NotificationMessage, WeatherCondition } from './types';
@@ -31,13 +31,21 @@ const DEFAULT_FAVORITES: City[] = [
 export default function App() {
   // Core user favorites and city preferences
   const [favorites, setFavorites] = useState<City[]>(() => {
-    const local = localStorage.getItem('climatiempo_favorites');
-    return local ? JSON.parse(local) : DEFAULT_FAVORITES;
+    try {
+      const local = localStorage.getItem('climatiempo_favorites');
+      return local ? JSON.parse(local) : DEFAULT_FAVORITES;
+    } catch {
+      return DEFAULT_FAVORITES;
+    }
   });
   
   const [currentCity, setCurrentCity] = useState<City>(() => {
-    const local = localStorage.getItem('climatiempo_current_city');
-    return local ? JSON.parse(local) : PREDEFINED_CITIES[0]; // Las Palmas de GC
+    try {
+      const local = localStorage.getItem('climatiempo_current_city');
+      return local ? JSON.parse(local) : PREDEFINED_CITIES[0]; // Las Palmas de GC
+    } catch {
+      return PREDEFINED_CITIES[0];
+    }
   });
 
   // Weather and UI states
@@ -53,8 +61,12 @@ export default function App() {
   });
 
   const [notifications, setNotifications] = useState<NotificationMessage[]>(() => {
-    const local = localStorage.getItem('climatiempo_notifications');
-    return local ? JSON.parse(local) : [];
+    try {
+      const local = localStorage.getItem('climatiempo_notifications');
+      return local ? JSON.parse(local) : [];
+    } catch {
+      return [];
+    }
   });
 
   // Fetching, offline and synchronization states
@@ -67,6 +79,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isCloudLoaded, setIsCloudLoaded] = useState(false);
+  const prevCityIdRef = useRef<string | null>(null);
 
   // Reference to prevent writing before initial cloud load finishes
   const isCloudLoadFinishedRef = useRef(false);
@@ -149,7 +162,7 @@ export default function App() {
               notificationsEnabled: true,
               tempUnit: tempUnit,
               darkModeSetting: darkModeSetting,
-              updatedAt: new Date(),
+              updatedAt: serverTimestamp(),
             };
             await setDoc(userRef, initialPref);
             console.log('[Cloud Sync] Initial user preferences document deployed for user ID:', user.uid);
@@ -181,7 +194,7 @@ export default function App() {
             notificationsEnabled: true,
             tempUnit: tempUnit,
             darkModeSetting: darkModeSetting,
-            updatedAt: new Date(),
+            updatedAt: serverTimestamp(),
           });
           console.log('[Cloud Sync] Auto-synced preferences modification to cloud.');
         } catch (err) {
@@ -195,10 +208,13 @@ export default function App() {
   }, [favorites, tempUnit, darkModeSetting, isAuthenticated, currentUser]);
 
   // Handle fetching weather forecasts
-  const getWeatherData = async (city: City) => {
+  const getWeatherData = async (city: City, isBackgroundRefresh = false) => {
     setIsLoading(true);
-    // Clearing weather data while fetching to avoid displaying old city's data
-    setWeather(null); 
+    // Only clear weather data if we are switching to a completely new city
+    if (prevCityIdRef.current !== city.id) {
+      setWeather(null); 
+    }
+    prevCityIdRef.current = city.id;
     setErrorMsg(null);
     console.log(`[App] Fetching weather data for: ${city.name}`);
     try {
@@ -240,7 +256,7 @@ export default function App() {
     const refreshInterval = setInterval(() => {
       if (navigator.onLine) {
         console.log('[Auto Refresh] Updating weather statistics for:', currentCity.name);
-        getWeatherData(currentCity);
+        getWeatherData(currentCity, true);
       }
     }, 900000); // 15 minutes
 
@@ -558,7 +574,7 @@ export default function App() {
             {/* Floating refresh button positioned absolute in the top right corner */}
             <button
               id="dashboard-weather-refresh"
-              onClick={() => getWeatherData(currentCity)}
+              onClick={() => getWeatherData(currentCity, true)}
               disabled={isLoading}
               className={`absolute top-6 right-6 md:top-8 md:right-8 z-20 w-10 h-10 rounded-full border flex items-center justify-center transition-all duration-350 cursor-pointer disabled:opacity-50 ${
                 activeDarkMode 

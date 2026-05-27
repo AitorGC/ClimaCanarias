@@ -12,12 +12,19 @@ async function startServer() {
   // API proxy routes
   const fetchWithRetry = async (url: string, retries = 3, backoff = 1000): Promise<Response> => {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      
       const response = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
           'Accept': 'application/json',
         },
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
+      
       if (!response.ok && retries > 0) {
         throw new Error(`Status ${response.status}`);
       }
@@ -39,8 +46,14 @@ async function startServer() {
       const response = await fetchWithRetry(url);
       if (!response.ok) {
         const text = await response.text();
-        console.error(`Error from Open-Meteo API (${response.status}):`, text.substring(0, 500));
-        return res.status(502).json({ error: `API error (${response.status}): ${text.substring(0, 100)}` });
+        let errorReason = `API error (${response.status})`;
+        if (text.trim().startsWith('<')) {
+           console.error(`Error from Open-Meteo API (${response.status}): [HTML Response] Gateway or server error.`);
+        } else {
+           console.error(`Error from Open-Meteo API (${response.status}):`, text.substring(0, 200));
+           errorReason += `: ${text.substring(0, 100)}`;
+        }
+        return res.status(502).json({ error: errorReason });
       }
       const data = await response.json();
       res.json(data);
@@ -58,8 +71,14 @@ async function startServer() {
       const response = await fetchWithRetry(url);
       if (!response.ok) {
         const text = await response.text();
-        console.error(`Error from Open-Meteo AQI API (${response.status}):`, text.substring(0, 500));
-        return res.status(502).json({ error: `API error (${response.status}): ${text.substring(0, 100)}` });
+        let errorReason = `API error (${response.status})`;
+        if (text.trim().startsWith('<')) {
+           console.error(`Error from Open-Meteo AQI API (${response.status}): [HTML Response] Gateway or server error.`);
+        } else {
+           console.error(`Error from Open-Meteo AQI API (${response.status}):`, text.substring(0, 200));
+           errorReason += `: ${text.substring(0, 100)}`;
+        }
+        return res.status(502).json({ error: errorReason });
       }
       const data = await response.json();
       res.json(data);
