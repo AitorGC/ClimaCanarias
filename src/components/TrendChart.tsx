@@ -150,7 +150,7 @@ export default function TrendChart({ hourly, tempUnit, activeDarkMode }: TrendCh
   // Custom formatting
   const formatVal = (val: number) => {
     if (activeMetric === 'temp') {
-      return tempUnit === 'C' ? `${Math.round(val)}°` : `${Math.round((val * 9/5) + 32)}°F`;
+      return tempUnit === 'C' ? `${Math.round(val)}°` : `${Math.round((val * 9/5) + 32)}F`;
     }
     return `${Math.round(val)}%`;
   };
@@ -467,7 +467,7 @@ export default function TrendChart({ hourly, tempUnit, activeDarkMode }: TrendCh
                 <div className="flex items-center justify-between gap-3">
                   <span className={activeDarkMode ? 'text-white/50' : 'text-slate-400'}>Temp:</span>
                   <span className={`font-bold ${activeDarkMode ? 'text-white' : 'text-slate-800'}`}>
-                    {tempUnit === 'C' ? `${Math.round(activeHoverData.raw.temp)}°C` : `${Math.round((activeHoverData.raw.temp * 9/5) + 32)}°F`}
+                    {tempUnit === 'C' ? `${Math.round(activeHoverData.raw.temp)}°C` : `${Math.round((activeHoverData.raw.temp * 9/5) + 32)}F`}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">

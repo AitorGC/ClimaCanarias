@@ -399,7 +399,7 @@ export default function App() {
                       : activeDarkMode ? 'text-white/50 hover:text-white' : 'text-brand-blue hover:text-brand-blue-hover font-semibold'
                   }`}
                 >
-                  °F
+                  F
                 </button>
               </div>
 
@@ -592,10 +592,10 @@ export default function App() {
                 <span className={`text-[100px] md:text-[130px] font-display font-thin leading-none tracking-tighter select-all flex ${
                   activeDarkMode ? 'text-white' : 'text-brand-blue font-bold'
                 }`}>
-                  {weather ? formatTemperature(weather.temp).replace('°C', '').replace('°F', '') : '--'}
+                  {weather ? formatTemperature(weather.temp).replace('°C', '').replace('°F', '').replace('F', '') : '--'}
                   <span className={`text-4xl md:text-5xl font-extralight align-top mt-2 ${
                     activeDarkMode ? 'text-white/90' : 'text-brand-blue/80'
-                  }`}>{tempUnit === 'C' ? '°' : '°F'}</span>
+                  }`}>{tempUnit === 'C' ? '°' : 'F'}</span>
                 </span>
                 <div className="pb-2">
                   <p className={`text-2xl md:text-3xl font-display font-light capitalize ${
