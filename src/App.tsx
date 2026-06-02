@@ -19,6 +19,7 @@ import FavoriteCitiesManager, { PREDEFINED_CITIES } from './components/FavoriteC
 import NotificationCenter from './components/NotificationCenter';
 import TrendChart from './components/TrendChart';
 import AirQualityIndicator from './components/AirQualityIndicator';
+import DailyComparisonChart from './components/DailyComparisonChart';
 
 // Default cities seed (Canarias capitals & major spots)
 const DEFAULT_FAVORITES: City[] = [
@@ -504,8 +505,17 @@ export default function App() {
       )}
 
       {/* 3. BENTO GRID CONTAINER */}
-      <main id="bento-grid-dashboard" className="max-w-7xl mx-auto px-4 py-4 grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 items-start w-full">
-        {authError && (
+      <AnimatePresence mode="wait">
+        <motion.main 
+          key={currentCity.id}
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.96 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          id="bento-grid-dashboard" 
+          className="max-w-7xl mx-auto px-4 py-4 grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 items-start w-full"
+        >
+          {authError && (
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -863,6 +873,33 @@ export default function App() {
               )}
             </motion.div>
 
+            {/* Sec 1.7. COMPARATIVA DE TEMPERATURAS PRÓXIMOS 7 DÍAS (RECHARTS BAR CHART) */}
+            <motion.div
+              whileHover={{ 
+                y: -4, 
+                scale: 1.012,
+                borderColor: activeDarkMode ? "rgba(255, 255, 255, 0.22)" : "rgba(0, 73, 148, 0.25)"
+              }}
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              className={`rounded-[28px] p-6 border backdrop-blur-md ${
+                activeDarkMode 
+                  ? 'border-white/10 bg-zinc-900/95 text-white' 
+                  : 'border-slate-205 bg-[#ffffff] text-slate-900 shadow-xl shadow-brand-blue/2'
+              }`}
+            >
+              {weather?.daily ? (
+                <DailyComparisonChart 
+                  daily={weather.daily} 
+                  tempUnit={tempUnit} 
+                  activeDarkMode={activeDarkMode} 
+                />
+              ) : (
+                <div className="py-12 text-center text-xs opacity-50 font-mono">
+                  Calculando comparativa térmica de 7 días...
+                </div>
+              )}
+            </motion.div>
+
             {/* Sec 2. PRÓXIMAS 6 HORAS */}
             <motion.div
               whileHover={{ 
@@ -1031,7 +1068,8 @@ export default function App() {
           />
 
         </div>
-      </main>
+        </motion.main>
+      </AnimatePresence>
 
       {/* 4. FOOTER CREDITS BRAND */}
       <footer id="main-footer" className={`border-t py-8 text-center mt-auto transition duration-300 ${

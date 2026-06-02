@@ -269,9 +269,20 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
     const rawHourly = raw.hourly;
     const hourly6h: HourlySlot6h[] = [];
     
-    // Find index of current hour or just take the first 6
-    const limit6 = Math.min(rawHourly.time.length, 6);
-    for (let i = 0; i < limit6; i++) {
+    // Find index of current hour
+    const now = new Date();
+    const startOfCurrentHour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 0, 0, 0).getTime();
+    
+    const currentHourIndex = (rawHourly.time as string[]).findIndex((timeStr: string) => {
+      // open-meteo uses local time without Z, but parsing it with new Date() might assume UTC if we are not careful.
+      // Easiest is to compare the unix timestamp if we can or just use hourly datetime relative to current local.
+      return new Date(timeStr).getTime() >= startOfCurrentHour;
+    });
+    const startIndex = currentHourIndex !== -1 ? currentHourIndex : 0;
+    
+    // Take the next 6 hours starting from current hour
+    const limit6 = Math.min(rawHourly.time.length, startIndex + 6);
+    for (let i = startIndex; i < limit6; i++) {
       const hTime = new Date(rawHourly.time[i]);
       const horaStr = hTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
       
@@ -307,14 +318,15 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
     }
 
     // Weekly Vertical Forecast (next 24h as a list for backward compatibility)
-    const hourlyList = (raw.hourly.time as string[]).slice(0, 24).map((time, idx) => {
+    const hourlyList = (raw.hourly.time as string[]).slice(startIndex, startIndex + 24).map((time, idx) => {
+      const hIdx = startIndex + idx;
       const formattedTime = new Date(time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
       return {
         time: formattedTime,
-        temp: raw.hourly.temperature_2m[idx] as number,
-        condition: mapWeatherCode(raw.hourly.weather_code[idx] as number),
-        precipProb: raw.hourly.precipitation_probability ? raw.hourly.precipitation_probability[idx] : 0,
-        humidity: raw.hourly.relative_humidity_2m ? raw.hourly.relative_humidity_2m[idx] : 0,
+        temp: raw.hourly.temperature_2m[hIdx] as number,
+        condition: mapWeatherCode(raw.hourly.weather_code[hIdx] as number),
+        precipProb: raw.hourly.precipitation_probability ? raw.hourly.precipitation_probability[hIdx] : 0,
+        humidity: raw.hourly.relative_humidity_2m ? raw.hourly.relative_humidity_2m[hIdx] : 0,
       };
     });
 
