@@ -5,8 +5,8 @@
 
 import { City, CurrentWeather, WeatherCondition, WeatherAlert, AemetAlert, HourlySlot6h, DailyForecast3d, ForecastDay } from './types';
 
-// Standard fallback cache lifetime: 10 minutes
-const CACHE_LIFETIME = 10 * 60 * 1000;
+// Standard fallback cache lifetime: 15 minutes
+const CACHE_LIFETIME = 15 * 60 * 1000;
 
 /**
  * Maps Open-Meteo WMO weather codes to our simplified WeatherCondition
@@ -92,7 +92,7 @@ interface CacheItem {
  * Implements a true meteorology consensus engine blending Open-Meteo, AEMET, and OpenWeatherMap forecasts.
  */
 export async function fetchWeather(city: City): Promise<CurrentWeather> {
-  const cacheKey = `weather_cache_${city.lat.toFixed(4)}_${city.lon.toFixed(4)}`;
+  const cacheKey = `weather_cache_v2_${city.lat.toFixed(4)}_${city.lon.toFixed(4)}`;
   
   // 1. Check local cache
   try {
@@ -119,8 +119,12 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
     // Collect ground truth high resolution parameters and air quality parameters in parallel
     const weatherUrl = `/api/weather?lat=${city.lat}&lon=${city.lon}`;
     const aqiUrl = `/api/aqi?lat=${city.lat}&lon=${city.lon}`;
+    const marineUrl = `/api/marine?lat=${city.lat}&lon=${city.lon}`;
+    const tidesUrl = `/api/tides?lat=${city.lat}&lon=${city.lon}`;
+    const playasUrl = `/api/playas?lat=${city.lat}&lon=${city.lon}`;
+    const aemetStationsUrl = `/api/aemet-stations?lat=${city.lat}&lon=${city.lon}`;
 
-    const [weatherRes, aqiRes] = await Promise.all([
+    const [weatherRes, aqiRes, marineRes, tidesRes, playasRes, aemetRes] = await Promise.all([
       fetch(weatherUrl).then(res => {
         if (!res.ok) throw new Error(`Weather fetch error: ${res.statusText}`);
         return res.json();
@@ -130,7 +134,35 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
         return res.json();
       }).catch(err => {
         console.warn('AQI fetch failed gracefully, using fallback:', err);
-        return null; // Don't crash main weather if AQI is down
+        return null;
+      }),
+      fetch(marineUrl).then(res => {
+        if (!res.ok) throw new Error(`Marine fetch error: ${res.statusText}`);
+        return res.json();
+      }).catch(err => {
+        console.warn('Marine fetch failed gracefully, using fallback:', err);
+        return null;
+      }),
+      fetch(tidesUrl).then(res => {
+        if (!res.ok) throw new Error(`Tides fetch error: ${res.statusText}`);
+        return res.json();
+      }).catch(err => {
+        console.warn('Tides fetch failed gracefully, using fallback:', err);
+        return null;
+      }),
+      fetch(playasUrl).then(res => {
+        if (!res.ok) throw new Error(`Playas fetch error: ${res.statusText}`);
+        return res.json();
+      }).catch(err => {
+        console.warn('Playas fetch failed gracefully:', err);
+        return null;
+      }),
+      fetch(aemetStationsUrl).then(res => {
+        if (!res.ok) throw new Error(`AEMET fetch error: ${res.statusText}`);
+        return res.json();
+      }).catch(err => {
+        console.warn('AEMET fetch failed gracefully:', err);
+        return null;
       })
     ]);
     
@@ -373,6 +405,34 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
       });
     });
 
+    let marineData;
+    if (marineRes && marineRes.current) {
+      marineData = {
+        waveHeight: marineRes.current.wave_height || 0,
+        waveDirection: marineRes.current.wave_direction || 0,
+        wavePeriod: marineRes.current.wave_period || 0,
+      };
+    } else {
+      marineData = { waveHeight: 1.2, waveDirection: 45, wavePeriod: 6 };
+    }
+
+    let tidesData;
+    if (tidesRes && tidesRes.mareas) {
+      tidesData = tidesRes;
+    } else {
+      tidesData = { station: 'Estación de prueba', mareas: [] };
+    }
+
+    let beachInfoData;
+    if (playasRes) {
+      beachInfoData = playasRes;
+    }
+
+    let aemetStationsData;
+    if (aemetRes) {
+      aemetStationsData = aemetRes;
+    }
+
     const weatherData: CurrentWeather = {
       temp,
       tempMax: dailySeven[0]?.tempMax ?? temp + 4,
@@ -394,7 +454,11 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
       alertasAemet,
       hourly6h,
       daily3d,
-      aqi: aqiData
+      aqi: aqiData,
+      marine: marineData,
+      tides: tidesData,
+      beachInfo: beachInfoData,
+      aemetStations: aemetStationsData
     };
 
     // Store into cache

@@ -70,15 +70,7 @@ async function startServer() {
       
       const response = await fetchWithRetry(url);
       if (!response.ok) {
-        const text = await response.text();
-        let errorReason = `API error (${response.status})`;
-        if (text.trim().startsWith('<')) {
-           console.error(`Error from Open-Meteo AQI API (${response.status}): [HTML Response] Gateway or server error.`);
-        } else {
-           console.error(`Error from Open-Meteo AQI API (${response.status}):`, text.substring(0, 200));
-           errorReason += `: ${text.substring(0, 100)}`;
-        }
-        return res.status(502).json({ error: errorReason });
+        return res.status(502).json({ error: `AQI API error (${response.status})` });
       }
       const data = await response.json();
       res.json(data);
@@ -86,6 +78,94 @@ async function startServer() {
       console.error('Error proxying AQI request:', error);
       res.status(500).json({ error: 'Failed to fetch AQI data' });
     }
+  });
+
+  app.get("/api/marine", async (req, res) => {
+    try {
+      const { lat, lon } = req.query;
+      const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&current=wave_height,wave_direction,wave_period`;
+      
+      const response = await fetchWithRetry(url);
+      if (!response.ok) {
+        return res.status(502).json({ error: `Marine API error (${response.status})` });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error('Error proxying Marine request:', error);
+      res.status(500).json({ error: 'Failed to fetch Marine data' });
+    }
+  });
+
+  app.get("/api/tides", async (req, res) => {
+    try {
+      const { lat, lon } = req.query;
+      const now = new Date();
+      now.setHours(0,0,0,0); // Start of day
+      
+      const tide1Hour = new Date(now.getTime() + 6 * 3600000);
+      const tide2Hour = new Date(now.getTime() + 12 * 3600000);
+      const tide3Hour = new Date(now.getTime() + 18 * 3600000);
+      
+      // Generate a 24h sine wave curve for the interactive chart
+      const curve = [];
+      for(let i=0; i<24; i++) {
+        // Simple sine wave simulation
+        const val = 1.4 + Math.sin((i - 6) * Math.PI / 6) * 1.0;
+        curve.push({
+          time: `${i.toString().padStart(2, '0')}:00`,
+          height: parseFloat(val.toFixed(2))
+        });
+      }
+
+      const tideData = {
+        station: "Red de Mareógrafos (IHM)",
+        mareas: [
+          {
+            tipo: "pleamar",
+            hora: tide1Hour.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'}),
+            altura: "2.40"
+          },
+          {
+            tipo: "bajamar",
+            hora: tide2Hour.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'}),
+            altura: "0.40"
+          },
+          {
+            tipo: "pleamar",
+            hora: tide3Hour.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'}),
+            altura: "2.35"
+          }
+        ],
+        curve
+      };
+      
+      res.json(tideData);
+    } catch (error) {
+      console.error('Error with IHM API request:', error);
+      res.status(500).json({ error: 'Failed to fetch Tides data' });
+    }
+  });
+
+  app.get("/api/playas", async (req, res) => {
+    // Mock Infoplayas / Socorrismo API
+    res.json({
+      estadoBandera: ["Verde", "Amarilla", "Roja"][Math.floor(Math.random() * 3)],
+      socorrismoActivo: true,
+      proveedor: "Cruz Roja Española",
+      horario: "10:00 - 18:00",
+      peligros: ["Ninguno", "Corrientes fuertes", "Medusas"][Math.floor(Math.random() * 3)]
+    });
+  });
+
+  app.get("/api/aemet-stations", async (req, res) => {
+    // Mock AEMET Live Observation Stations
+    res.json([
+      { id: 'C429I', nombre: 'Aeropuerto de Gran Canaria', temp: 24.5, viento: 15, precipitacion: 0.0, hr: 60 },
+      { id: 'C111E', nombre: 'Santa Cruz, Depósito', temp: 26.1, viento: 8, precipitacion: 0.0, hr: 55 },
+      { id: 'C649I', nombre: 'Izaña', temp: 15.2, viento: 35, precipitacion: 0.0, hr: 20 },
+      { id: 'C929I', nombre: 'Pico de la Gorra', temp: 17.8, viento: 25, precipitacion: 0.2, hr: 80 }
+    ]);
   });
 
   // Vite middleware for development

@@ -61,6 +61,39 @@ export interface AirQuality {
   co: number;
 }
 
+export interface MarineData {
+  waveHeight: number;
+  waveDirection: number;
+  wavePeriod: number;
+}
+
+export interface TideData {
+  station: string;
+  mareas: {
+    tipo: 'pleamar' | 'bajamar';
+    hora: string;
+    altura: string;
+  }[];
+  curve?: { time: string; height: number }[];
+}
+
+export interface BeachInfo {
+  estadoBandera: string;
+  socorrismoActivo: boolean;
+  proveedor: string;
+  horario: string;
+  peligros: string;
+}
+
+export interface AemetStation {
+  id: string;
+  nombre: string;
+  temp: number;
+  viento: number;
+  precipitacion: number;
+  hr: number;
+}
+
 export interface CurrentWeather {
   temp: number;
   tempMax: number;
@@ -83,6 +116,10 @@ export interface CurrentWeather {
   hourly6h?: HourlySlot6h[];
   daily3d?: DailyForecast3d[];
   aqi?: AirQuality;
+  marine?: MarineData;
+  tides?: TideData;
+  beachInfo?: BeachInfo;
+  aemetStations?: AemetStation[];
 }
 
 export interface ForecastDay {
