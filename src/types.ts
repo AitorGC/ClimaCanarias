@@ -94,6 +94,21 @@ export interface AemetStation {
   hr: number;
 }
 
+export interface SunData {
+  sunrise: string; // e.g. "07:34"
+  sunset: string; // e.g. "20:41"
+  dawn?: string; // e.g. "07:10" (crepúsculo civil)
+  dusk?: string; // e.g. "21:05"
+  solarNoon?: string; // e.g. "14:07"
+  dayLength: string; // e.g. "13h 07m"
+  dayProgressPercent: number; // 0 to 100
+  isDaytime: boolean;
+  sunAltitude?: number; // degrees
+  timeUntilNextEvent: string; // e.g. "Puesta de sol en 3h 24m"
+  goldenHourMorning?: string; // e.g. "07:34 - 08:15"
+  goldenHourEvening?: string; // e.g. "20:00 - 20:41"
+}
+
 export interface CurrentWeather {
   temp: number;
   tempMax: number;
@@ -102,6 +117,7 @@ export interface CurrentWeather {
   description: string;
   humidity: number;
   windSpeed: number;
+  windDir: number;
   pressure: number;
   uvIndex: number;
   alerts: WeatherAlert[];
@@ -120,6 +136,7 @@ export interface CurrentWeather {
   tides?: TideData;
   beachInfo?: BeachInfo;
   aemetStations?: AemetStation[];
+  sunData?: SunData;
 }
 
 export interface ForecastDay {
@@ -128,6 +145,8 @@ export interface ForecastDay {
   tempMin: number;
   condition: WeatherCondition;
   pop: number; // Probability of precipitation percentage (0 to 100)
+  sunrise?: string;
+  sunset?: string;
 }
 
 export interface StormCell {

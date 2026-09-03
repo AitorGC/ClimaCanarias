@@ -4,6 +4,9 @@
  */
 
 import { City, CurrentWeather, WeatherCondition, WeatherAlert, AemetAlert, HourlySlot6h, DailyForecast3d, ForecastDay } from './types';
+import { calculateSunTimes } from './solarService';
+import { trackedFetch } from './telemetry';
+import { storage } from './storage';
 
 // Standard fallback cache lifetime: 15 minutes
 const CACHE_LIFETIME = 15 * 60 * 1000;
@@ -12,13 +15,13 @@ const CACHE_LIFETIME = 15 * 60 * 1000;
  * Maps Open-Meteo WMO weather codes to our simplified WeatherCondition
  */
 export function mapWeatherCode(code: number): WeatherCondition {
-  if (code === 0) return 'sunny';
-  if ([1, 2, 3].includes(code)) return 'cloudy';
+  if (code === 0 || code === 1) return 'sunny';
+  if ([2, 3].includes(code)) return 'cloudy';
   if ([45, 48].includes(code)) return 'foggy';
   if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return 'rainy';
   if ([71, 73, 75, 77, 85, 86].includes(code)) return 'snowy';
   if ([95, 96, 99].includes(code)) return 'storm';
-  return 'windy'; // Fallback
+  return 'sunny'; // Fallback to sunny
 }
 
 /**
@@ -54,26 +57,54 @@ export function getWeatherDescription(code: number): string {
 /**
  * Translates wind direction in degrees to clear Spanish textual orientations
  */
-export function getWindDirectionText(degrees: number): string {
-  if (degrees >= 337.5 || degrees < 22.5) return 'Norte';
-  if (degrees >= 22.5 && degrees < 67.5) return 'Nordeste';
-  if (degrees >= 67.5 && degrees < 112.5) return 'Este';
-  if (degrees >= 112.5 && degrees < 157.5) return 'Sudeste';
-  if (degrees >= 157.5 && degrees < 202.5) return 'Sur';
-  if (degrees >= 202.5 && degrees < 247.5) return 'Suroeste';
-  if (degrees >= 247.5 && degrees < 292.5) return 'Oeste';
-  if (degrees >= 292.5 && degrees < 337.5) return 'Noroeste';
-  return 'Variable';
+export function getWindDirectionText(degrees: number | undefined): string {
+  if (degrees === undefined || degrees === null || isNaN(degrees)) return 'Nordeste';
+  const normalized = ((degrees % 360) + 360) % 360;
+  if (normalized >= 337.5 || normalized < 22.5) return 'Norte';
+  if (normalized >= 22.5 && normalized < 67.5) return 'Nordeste';
+  if (normalized >= 67.5 && normalized < 112.5) return 'Este';
+  if (normalized >= 112.5 && normalized < 157.5) return 'Sudeste';
+  if (normalized >= 157.5 && normalized < 202.5) return 'Sur';
+  if (normalized >= 202.5 && normalized < 247.5) return 'Suroeste';
+  if (normalized >= 247.5 && normalized < 292.5) return 'Oeste';
+  if (normalized >= 292.5 && normalized < 337.5) return 'Noroeste';
+  return 'Nordeste';
 }
 
 /**
  * Evaluates Saharan dust intrusion (Calima) specialized for Canary Islands geography.
- * Dry hot air from E/SE brings Saharan dust.
+ * Algoritmo oficial de ClimaCanarias (Android):
+ * 1. Calima Severa (Alto): Viento E/SE (65° <= dir <= 155°), PM10 > 100 µg/m³ y velocidad > 15 km/h.
+ * 2. Calima Moderada: Viento E/SE (65° <= dir <= 155°) y PM10 > 50 µg/m³.
+ * 3. Calima Leve/Moderada: PM10 > 60 µg/m³ independientemente del viento.
+ * 4. Fallback termodinámico local si no hay PM10 disponible.
  */
-export function calculateCalima(windDirDeg: number, humidity: number, temp: number): 'Bajo' | 'Moderado' | 'Alto' {
-  // Saharan winds blow from 50 to 160 degrees (E-SE vector directly from Morocco/Western Sahara)
-  const isSaharanSecto = windDirDeg >= 50 && windDirDeg <= 160;
-  if (isSaharanSecto) {
+export function calculateCalima(windDirDeg: number, humidity: number, temp: number, pm10?: number, windSpeed?: number): 'Bajo' | 'Moderado' | 'Alto' {
+  // Check exact PM10 + Wind Vector criteria if PM10 is supplied
+  if (pm10 !== undefined && pm10 !== null) {
+    const isSaharanVector = windDirDeg >= 65 && windDirDeg <= 155;
+    const speed = windSpeed ?? 15;
+
+    if (isSaharanVector && pm10 > 100 && speed > 15) {
+      return 'Alto';
+    }
+    if (isSaharanVector && pm10 > 50) {
+      return 'Moderado';
+    }
+    if (pm10 > 60) {
+      return 'Moderado';
+    }
+    if (pm10 > 120) {
+      return 'Alto';
+    }
+    if (pm10 <= 35) {
+      return 'Bajo';
+    }
+  }
+
+  // Thermodynamic fallback based on Saharan Sector and humidity/temperature
+  const isSaharanSector = windDirDeg >= 65 && windDirDeg <= 155;
+  if (isSaharanSector) {
     if (temp >= 28 && humidity <= 35) return 'Alto';
     if (temp >= 23 && humidity <= 45) return 'Moderado';
     return 'Moderado';
@@ -91,24 +122,32 @@ interface CacheItem {
  * Fetches current weather & forecast for a city, applying cache-first offline-capable strategy.
  * Implements a true meteorology consensus engine blending Open-Meteo, AEMET, and OpenWeatherMap forecasts.
  */
+// In-memory fast RAM cache for instantaneous switching between locations
+const memoryCache = new Map<string, { data: CurrentWeather; timestamp: number }>();
+
 export async function fetchWeather(city: City): Promise<CurrentWeather> {
   const cacheKey = `weather_cache_v2_${city.lat.toFixed(4)}_${city.lon.toFixed(4)}`;
   
-  // 1. Check local cache
+  // 1. Fast check RAM cache (0ms instant switch)
+  const mem = memoryCache.get(cacheKey);
+  if (mem && (Date.now() - mem.timestamp < CACHE_LIFETIME)) {
+    return mem.data;
+  }
+
+  // 2. Check IndexedDB persistent cache
   try {
-    const cached = localStorage.getItem(cacheKey);
+    const cached = await storage.getItem<CacheItem | null>(cacheKey, null);
     if (cached) {
-      const parsed: CacheItem = JSON.parse(cached);
-      const age = Date.now() - parsed.timestamp;
+      const age = Date.now() - cached.timestamp;
       
       // Serve cached data if offline or if cache is still fresh (<15 mins)
       if (!navigator.onLine || age < CACHE_LIFETIME) {
-        console.log(`[Cache] Serving cached Canary Consensus data for ${city.name}`);
-        return parsed.data;
+        memoryCache.set(cacheKey, { data: cached.data, timestamp: cached.timestamp });
+        return cached.data;
       }
     }
   } catch (err) {
-    console.error('Error reading localStorage cache', err);
+    console.error('Error reading indexedDB cache', err);
   }
 
   if (!navigator.onLine) {
@@ -124,46 +163,54 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
     const playasUrl = `/api/playas?lat=${city.lat}&lon=${city.lon}`;
     const aemetStationsUrl = `/api/aemet-stations?lat=${city.lat}&lon=${city.lon}`;
 
+    // Helper to race secondary endpoints so slow external feeds never delay core weather or animations
+    const quickSecondary = <T>(promise: Promise<T>, fallback: T, ms = 850): Promise<T> => {
+      return Promise.race([
+        promise,
+        new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms))
+      ]);
+    };
+
     const [weatherRes, aqiRes, marineRes, tidesRes, playasRes, aemetRes] = await Promise.all([
-      fetch(weatherUrl).then(res => {
+      trackedFetch(weatherUrl, 'OPEN_METEO_WEATHER').then(res => {
         if (!res.ok) throw new Error(`Weather fetch error: ${res.statusText}`);
         return res.json();
       }),
-      fetch(aqiUrl).then(res => {
+      trackedFetch(aqiUrl, 'OPEN_METEO_AQI').then(res => {
         if (!res.ok) throw new Error(`AQI fetch error: ${res.statusText}`);
         return res.json();
       }).catch(err => {
         console.warn('AQI fetch failed gracefully, using fallback:', err);
         return null;
       }),
-      fetch(marineUrl).then(res => {
-        if (!res.ok) throw new Error(`Marine fetch error: ${res.statusText}`);
-        return res.json();
-      }).catch(err => {
-        console.warn('Marine fetch failed gracefully, using fallback:', err);
-        return null;
-      }),
-      fetch(tidesUrl).then(res => {
-        if (!res.ok) throw new Error(`Tides fetch error: ${res.statusText}`);
-        return res.json();
-      }).catch(err => {
-        console.warn('Tides fetch failed gracefully, using fallback:', err);
-        return null;
-      }),
-      fetch(playasUrl).then(res => {
-        if (!res.ok) throw new Error(`Playas fetch error: ${res.statusText}`);
-        return res.json();
-      }).catch(err => {
-        console.warn('Playas fetch failed gracefully:', err);
-        return null;
-      }),
-      fetch(aemetStationsUrl).then(res => {
-        if (!res.ok) throw new Error(`AEMET fetch error: ${res.statusText}`);
-        return res.json();
-      }).catch(err => {
-        console.warn('AEMET fetch failed gracefully:', err);
-        return null;
-      })
+      quickSecondary(
+        trackedFetch(marineUrl, 'OPEN_METEO_MARINE').then(res => {
+          if (!res.ok) return null;
+          return res.json();
+        }).catch(() => null),
+        null
+      ),
+      quickSecondary(
+        trackedFetch(tidesUrl, 'IHM_TIDES').then(res => {
+          if (!res.ok) return null;
+          return res.json();
+        }).catch(() => null),
+        null
+      ),
+      quickSecondary(
+        trackedFetch(playasUrl, 'INFOPLAYAS').then(res => {
+          if (!res.ok) return null;
+          return res.json();
+        }).catch(() => null),
+        null
+      ),
+      quickSecondary(
+        trackedFetch(aemetStationsUrl, 'AEMET_STATIONS').then(res => {
+          if (!res.ok) return null;
+          return res.json();
+        }).catch(() => null),
+        null
+      )
     ]);
     
     const raw = weatherRes;
@@ -236,7 +283,7 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
     let confidenceIndex = Math.max(70, Math.min(99, Math.round(100 - (tempDivergence * 8))));
     
     // Apply trade winds (Alisios) or Calima factor to consensus stability values
-    const calimaRating = calculateCalima(windDirectionDeg, humidity, temp);
+    const calimaRating = calculateCalima(windDirectionDeg, humidity, temp, aqiData.pm10, windSpeed);
     if (calimaRating === 'Alto') {
       confidenceIndex = Math.max(75, confidenceIndex - 5); // Calima events can have model variance
     }
@@ -296,7 +343,7 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
       });
     }
 
-    // Hourly parse matching exactly the NEXT 6 HOURS slot structure:
+    // Hourly parse matching the NEXT 12 HOURS slot structure:
     // Hora, Temp(°C), Sensación, Viento (Vel/Dir), Humedad(%), Precip(%), Calima (Bajo/Mod/Alto), Visibilidad(km).
     const rawHourly = raw.hourly;
     const hourly6h: HourlySlot6h[] = [];
@@ -312,9 +359,9 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
     });
     const startIndex = currentHourIndex !== -1 ? currentHourIndex : 0;
     
-    // Take the next 6 hours starting from current hour
-    const limit6 = Math.min(rawHourly.time.length, startIndex + 6);
-    for (let i = startIndex; i < limit6; i++) {
+    // Take the next 12 hours starting from current hour
+    const limit12 = Math.min(rawHourly.time.length, startIndex + 12);
+    for (let i = startIndex; i < limit12; i++) {
       const hTime = new Date(rawHourly.time[i]);
       const horaStr = hTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
       
@@ -389,8 +436,19 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
         tempMin: raw.daily.temperature_2m_min[idx] as number,
         condition: mapWeatherCode(raw.daily.weather_code[idx] as number),
         pop: raw.daily.precipitation_probability_max ? (raw.daily.precipitation_probability_max[idx] || 0) : 0,
+        sunrise: raw.daily.sunrise?.[idx] ? new Date(raw.daily.sunrise[idx]).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : undefined,
+        sunset: raw.daily.sunset?.[idx] ? new Date(raw.daily.sunset[idx]).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : undefined,
       };
     });
+
+    // Calculate precise solar times based on exact city coordinates
+    const sunData = calculateSunTimes(
+      city.lat,
+      city.lon,
+      new Date(),
+      raw.daily.sunrise?.[0],
+      raw.daily.sunset?.[0]
+    );
 
     // Create high-fidelity general alert logs for historical purposes
     const legacyAlerts: WeatherAlert[] = [];
@@ -441,6 +499,7 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
       description,
       humidity,
       windSpeed,
+      windDir: windDirectionDeg,
       pressure,
       uvIndex,
       alerts: legacyAlerts,
@@ -458,7 +517,8 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
       marine: marineData,
       tides: tidesData,
       beachInfo: beachInfoData,
-      aemetStations: aemetStationsData
+      aemetStations: aemetStationsData,
+      sunData,
     };
 
     // Store into cache
@@ -467,9 +527,9 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
         timestamp: Date.now(),
         data: weatherData,
       };
-      localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+      await storage.setItem(cacheKey, cacheData);
     } catch (err) {
-      console.error('Error writing localStorage cache', err);
+      console.error('Error writing indexedDB cache', err);
     }
 
     return weatherData;
@@ -477,16 +537,19 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
     console.warn(`Consensus fetch failed for ${city.name}, loading cache recovery...`, error);
     
     // Attempt cache fallback even if it is expired
-    const cachedFallback = localStorage.getItem(cacheKey);
-    if (cachedFallback) {
-      const parsed: CacheItem = JSON.parse(cachedFallback);
-      return parsed.data;
+    try {
+      const cachedFallback = await storage.getItem<CacheItem | null>(cacheKey, null);
+      if (cachedFallback) {
+        return cachedFallback.data;
+      }
+    } catch (err) {
+      console.error('Fallback read error', err);
     }
     
     // --- GRACEFUL DEGRADATION: MOCK FALLBACK WHEN API IS RATE-LIMITED/BLOCKED ---
     console.warn(`[Network] Open-Meteo API failed and no cache exists for ${city.name}. Generating synthetic fallback to prevent UI crash.`);
     
-    const mockHourly: HourlySlot6h[] = Array.from({ length: 6 }).map((_, i) => {
+    const mockHourly: HourlySlot6h[] = Array.from({ length: 12 }).map((_, i) => {
       const d = new Date(); d.setHours(d.getHours() + i);
       return {
         hora: d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
@@ -509,6 +572,7 @@ export async function fetchWeather(city: City): Promise<CurrentWeather> {
       description: 'Condiciones Simuladas (Modo Desconectado)',
       humidity: 55,
       windSpeed: 20,
+      windDir: 45,
       pressure: 1015,
       uvIndex: 7,
       alerts: [],

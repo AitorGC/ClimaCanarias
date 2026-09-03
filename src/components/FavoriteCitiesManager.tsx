@@ -1,5 +1,5 @@
-import React, { FormEvent, useState, useRef, useEffect } from 'react';
-import { Heart, Search, Star, Trash2, MapPin, Plus, Loader2, Anchor, Radio } from 'lucide-react';
+import React, { useState } from 'react';
+import { Heart, Trash2, MapPin, Plus } from 'lucide-react';
 import { City } from '../types';
 
 interface FavoriteCitiesManagerProps {
@@ -39,75 +39,12 @@ export default function FavoriteCitiesManager({
   onSelectCity,
   onAddFavorite,
   onRemoveFavorite,
-  isAuthenticated,
-  onLogin,
   activeDarkMode = true,
 }: FavoriteCitiesManagerProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<City[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchType, setSearchType] = useState<'ciudades' | 'playas' | 'estaciones'>('ciudades');
-  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
-
   const [customLat, setCustomLat] = useState('');
   const [customLon, setCustomLon] = useState('');
   const [customName, setCustomName] = useState('');
   const [showCustomCoordsForm, setShowCustomCoordsForm] = useState(false);
-
-  useEffect(() => {
-    if (searchType !== 'ciudades') {
-      const results = searchType === 'playas' ? PREDEFINED_BEACHES : PREDEFINED_STATIONS;
-      if (searchQuery.trim()) {
-        setSearchResults(results.filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase())));
-      } else {
-        setSearchResults(results);
-      }
-      return;
-    }
-
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      setIsSearching(false);
-      return;
-    }
-
-    if (searchTimeout.current) {
-      clearTimeout(searchTimeout.current);
-    }
-
-    setIsSearching(true);
-    searchTimeout.current = setTimeout(async () => {
-      try {
-        const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(searchQuery)}&count=10&language=es`);
-        const data = await response.json();
-        
-        if (data.results) {
-          const results: City[] = data.results.map((r: any) => ({
-            id: `geo-${r.id}`,
-            name: r.name,
-            lat: r.latitude,
-            lon: r.longitude,
-            country: r.country,
-            state: r.admin1 || r.admin2 || ''
-          }));
-          setSearchResults(results);
-        } else {
-          setSearchResults([]);
-        }
-      } catch (error) {
-        console.error("Geocoding error:", error);
-        setSearchResults([]);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 500);
-
-    return () => {
-      if (searchTimeout.current) {
-        clearTimeout(searchTimeout.current);
-      }
-    };
-  }, [searchQuery, searchType]);
 
   const handleAddCustomCoords = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,134 +75,31 @@ export default function FavoriteCitiesManager({
   };
 
   return (
-    <div className={`rounded-[24px] p-5 md:p-6 border backdrop-blur-md flex flex-col items-stretch transition-colors duration-300 ${
-      activeDarkMode ? 'border-white/10 bg-zinc-900/90 text-white' : 'border-slate-205 bg-white text-slate-900 shadow-xl shadow-brand-blue/2'
+    <div className={`rounded-[28px] p-5 md:p-6 border backdrop-blur-md flex flex-col items-stretch transition-colors duration-300 md-card ${
+      activeDarkMode 
+        ? 'border-white/10 bg-[#1e2227] text-[#e8e5d8]' 
+        : 'border-amber-200/70 bg-[#fffef7] text-[#1c1c18] shadow-lg shadow-amber-500/5'
     }`}>
-      {/* Search Header */}
-      <div className="mb-4">
-        <h3 className={`text-xs font-mono uppercase tracking-widest flex items-center justify-between gap-2 mb-3 ${
-          activeDarkMode ? 'text-teal-400' : 'text-brand-blue font-bold'
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <span className={`text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-2 ${
+          activeDarkMode ? 'text-[#ffd600]' : 'text-amber-900'
         }`}>
-          <div className="flex items-center gap-2">
-            <Search className={`w-4 h-4 ${activeDarkMode ? 'text-teal-400' : 'text-brand-blue'}`} />
-            <span>Buscador y Favoritos</span>
-          </div>
-        </h3>
-        
-        <div className="flex gap-2 mb-3">
-          <button 
-            onClick={() => { setSearchType('ciudades'); setSearchQuery(''); }}
-            className={`flex-1 text-[9px] py-1.5 px-2 rounded-lg font-bold flex flex-col items-center gap-1 transition-colors ${
-            searchType === 'ciudades' 
-              ? activeDarkMode ? 'bg-teal-500/20 text-teal-300' : 'bg-brand-blue text-white' 
-              : activeDarkMode ? 'bg-white/5 text-white/40' : 'bg-slate-100 text-slate-500'
-          }`}>
-            <MapPin className="w-3.5 h-3.5" />
-            Municipios
-          </button>
-          <button 
-            onClick={() => { setSearchType('playas'); setSearchQuery(''); }}
-            className={`flex-1 text-[9px] py-1.5 px-2 rounded-lg font-bold flex flex-col items-center gap-1 transition-colors ${
-            searchType === 'playas' 
-              ? activeDarkMode ? 'bg-blue-500/20 text-blue-300' : 'bg-brand-blue text-white' 
-              : activeDarkMode ? 'bg-white/5 text-white/40' : 'bg-slate-100 text-slate-500'
-          }`}>
-            <Anchor className="w-3.5 h-3.5" />
-            Playas
-          </button>
-          <button 
-             onClick={() => { setSearchType('estaciones'); setSearchQuery(''); }}
-            className={`flex-1 text-[9px] py-1.5 px-2 rounded-lg font-bold flex flex-col items-center gap-1 transition-colors ${
-            searchType === 'estaciones' 
-              ? activeDarkMode ? 'bg-purple-500/20 text-purple-300' : 'bg-brand-blue text-white' 
-              : activeDarkMode ? 'bg-white/5 text-white/40' : 'bg-slate-100 text-slate-500'
-          }`}>
-            <Radio className="w-3.5 h-3.5" />
-            Estaciones
-          </button>
-        </div>
-        
-        <div className="relative">
-          <label htmlFor="city-search-input" className="sr-only">Buscar lugares...</label>
-          <input
-            id="city-search-input"
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={
-              searchType === 'ciudades' ? "Buscar municipio mundial..." 
-              : searchType === 'playas' ? "Buscar playas (Canarias)..." 
-              : "Buscar estaciones AEMET..."
-            }
-            className={`w-full text-xs rounded-xl pl-9 pr-4 py-2.5 focus:outline-hidden border transition-colors ${
-              activeDarkMode 
-                ? 'bg-white/5 border-white/10 text-white placeholder-white/40 focus:border-white/20' 
-                : 'bg-slate-50 border-slate-205 text-slate-805 placeholder-slate-400 focus:border-brand-blue/40 focus:ring-1 focus:ring-brand-blue/10'
-            }`}
-          />
-          {isSearching ? (
-             <Loader2 className={`absolute left-3 top-2.5 w-4 h-4 animate-spin ${
-              activeDarkMode ? 'text-white/40' : 'text-slate-400'
-            }`} />
-          ) : (
-            <Search className={`absolute left-3 top-2.5 w-4 h-4 ${
-              activeDarkMode ? 'text-white/40' : 'text-slate-400'
-            }`} />
-          )}
-        </div>
-
-        {searchResults.length > 0 && (
-          <div className={`mt-2 rounded-xl border max-h-48 overflow-y-auto ${
-            activeDarkMode ? 'bg-zinc-800/90 border-white/10' : 'bg-white border-slate-200 shadow-lg'
-          }`}>
-            {searchResults.map((city) => (
-              <button
-                key={city.id}
-                onClick={() => {
-                  onSelectCity(city);
-                  setSearchQuery('');
-                  setSearchType('ciudades');
-                  setSearchResults([]);
-                }}
-                className={`w-full text-left px-4 py-2.5 text-xs flex justify-between items-center transition ${
-                  activeDarkMode 
-                    ? 'hover:bg-white/10 text-white' 
-                    : 'hover:bg-blue-50 text-slate-800 hover:text-brand-blue'
-                }`}
-              >
-                <div>
-                  <span className="font-semibold">{city.name}</span>
-                  <span className={`ml-2 text-[10px] ${
-                    activeDarkMode ? 'text-white/50' : 'text-slate-500'
-                  }`}>
-                    {city.state ? `${city.state}, ` : ''}{city.country}
-                  </span>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddFavorite(city);
-                    setSearchQuery('');
-                    setSearchType('ciudades');
-                    setSearchResults([]);
-                  }}
-                  className={`p-1.5 rounded-full ${
-                    activeDarkMode ? 'hover:bg-white/20 text-white/50' : 'hover:bg-blue-100 text-brand-blue/60'
-                  }`}
-                >
-                  <Star className="w-3.5 h-3.5" />
-                </button>
-              </button>
-            ))}
-          </div>
-        )}
+          <Heart className="w-4 h-4 text-[#f5cf00] fill-current" />
+          <span>Ubicaciones Favoritas</span>
+        </span>
+        <span className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full font-bold ${
+          activeDarkMode ? 'bg-white/10 text-white/70' : 'bg-amber-100 text-amber-900'
+        }`}>
+          {favorites.length} guardadas
+        </span>
       </div>
 
-      {/* Navigation list of active favorite cities */}
-      <div className="flex-1 overflow-y-auto space-y-2 max-h-40 md:max-h-56 select-none pr-1 mb-3">
+      {/* Material 3 List of Favorites */}
+      <div className="flex-1 overflow-y-auto space-y-2 max-h-48 md:max-h-60 select-none pr-1 mb-3 no-scrollbar">
         {favorites.length === 0 ? (
           <div className={`h-full flex flex-col justify-center items-center py-6 text-center border-2 border-dashed rounded-2xl ${
-            activeDarkMode ? 'border-white/10' : 'border-slate-200 bg-slate-50/20'
+            activeDarkMode ? 'border-white/10' : 'border-amber-200 bg-amber-50/30'
           }`}>
             <Heart className={`w-5 h-5 mb-1 ${activeDarkMode ? 'text-white/20' : 'text-slate-350'}`} />
             <p className={`text-[10px] ${activeDarkMode ? 'text-white/40' : 'text-slate-400'}`}>No hay favoritos guardados</p>
@@ -276,34 +110,35 @@ export default function FavoriteCitiesManager({
             return (
               <div
                 key={city.id}
-                className={`flex justify-between items-center rounded-2xl p-3 border transition duration-300 ${
+                className={`flex justify-between items-center rounded-2xl p-3 border transition duration-200 ${
                   isSelected
                     ? activeDarkMode
-                      ? 'bg-white/10 border-white/25 text-white'
-                      : 'bg-blue-50 border-brand-blue/30 text-brand-blue font-semibold shadow-2xs'
+                      ? 'bg-[#ffd600]/25 border-[#ffd600]/50 text-white shadow-xs'
+                      : 'bg-[#fff5b8] border-[#f5cf00] text-slate-950 font-semibold shadow-xs'
                     : activeDarkMode
-                      ? 'bg-white/5 border-white/5 text-white/70 hover:bg-white/10 hover:border-white/10'
-                      : 'bg-[#ffffff] border-slate-200/60 text-slate-600 hover:bg-slate-50 hover:border-brand-blue/20 hover:text-brand-blue shadow-3xs'
+                      ? 'bg-[#14171a]/80 border-white/5 text-white/80 hover:bg-white/10 hover:border-white/15'
+                      : 'bg-white border-amber-100 text-slate-700 hover:bg-amber-50/80 hover:border-amber-300 shadow-2xs'
                 }`}
               >
                 <button
+                  type="button"
                   onClick={() => onSelectCity(city)}
                   className="flex-1 text-left flex items-center gap-2.5 cursor-pointer"
                 >
-                  <MapPin className={`w-3.5 h-3.5 ${
+                  <MapPin className={`w-4 h-4 shrink-0 ${
                     isSelected 
-                      ? activeDarkMode ? 'text-white' : 'text-brand-blue' 
+                      ? activeDarkMode ? 'text-[#ffd600]' : 'text-[#d6a100]' 
                       : activeDarkMode ? 'text-white/30' : 'text-slate-400'
                   }`} />
                   <div>
                     <span className={`text-xs block leading-tight ${
                       isSelected
-                        ? activeDarkMode ? 'text-white font-normal' : 'text-brand-blue font-bold'
-                        : activeDarkMode ? 'text-white/90 font-light' : 'text-slate-750 font-normal'
+                        ? activeDarkMode ? 'text-[#ffd600] font-bold' : 'text-slate-900 font-bold'
+                        : activeDarkMode ? 'text-white/90 font-normal' : 'text-slate-800 font-normal'
                     }`}>{city.name}</span>
                     <span className={`text-[9px] block font-mono mt-0.5 ${
                       isSelected
-                        ? activeDarkMode ? 'text-white/40' : 'text-brand-blue/60'
+                        ? activeDarkMode ? 'text-white/60' : 'text-slate-600'
                         : activeDarkMode ? 'text-white/30' : 'text-slate-400'
                     }`}>
                       {city.lat.toFixed(2)}°N • {Math.abs(city.lon).toFixed(2)}°{city.lon >= 0 ? 'E' : 'O'}
@@ -311,11 +146,15 @@ export default function FavoriteCitiesManager({
                   </div>
                 </button>
                 <button
-                  onClick={() => onRemoveFavorite(city.id)}
-                  className={`p-1 rounded-lg transition cursor-pointer ${
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveFavorite(city.id);
+                  }}
+                  className={`p-1.5 rounded-full transition cursor-pointer ${
                     activeDarkMode 
-                      ? 'text-white/30 hover:text-red-400' 
-                      : 'text-slate-400 hover:text-red-500'
+                      ? 'text-white/30 hover:text-red-400 hover:bg-white/10' 
+                      : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
                   }`}
                   title="Eliminar de favoritos"
                 >
@@ -328,24 +167,25 @@ export default function FavoriteCitiesManager({
       </div>
 
       {/* Button to toggle Custom Coordinates manual tool */}
-      <div className={`border-t pt-3 ${activeDarkMode ? 'border-white/5' : 'border-slate-100'}`}>
+      <div className={`border-t pt-3 ${activeDarkMode ? 'border-white/10' : 'border-amber-200/80'}`}>
         <button
+          type="button"
           onClick={() => setShowCustomCoordsForm(!showCustomCoordsForm)}
-          className={`w-full py-1.5 flex justify-center items-center gap-1 border border-dashed rounded-xl text-[10px] font-mono font-medium transition cursor-pointer ${
+          className={`w-full py-2 px-3 flex justify-center items-center gap-1.5 border border-dashed rounded-full text-[10px] font-mono font-bold transition cursor-pointer ${
             activeDarkMode
-              ? 'border-white/10 hover:border-white/20 bg-white/5 text-white/55'
-              : 'border-brand-blue/30 hover:border-brand-blue/50 bg-blue-50/30 text-brand-blue'
+              ? 'border-[#ffd600]/40 hover:border-[#ffd600] bg-[#ffd600]/10 text-[#ffd600]'
+              : 'border-[#f5cf00] hover:border-[#d6a100] bg-amber-50 text-amber-900'
           }`}
         >
-          <Plus className={`w-3 h-3 ${activeDarkMode ? 'text-white/40' : 'text-brand-blue'}`} />
-          {showCustomCoordsForm ? 'OCULTAR COORDENADAS MANUALES' : 'AÑADIR COORDENADAS MANUALES'}
+          <Plus className={`w-3.5 h-3.5 ${activeDarkMode ? 'text-[#ffd600]' : 'text-[#d6a100]'}`} />
+          {showCustomCoordsForm ? 'OCULTAR COORDENADAS' : 'AÑADIR COORDENADAS MANUALES'}
         </button>
 
         {showCustomCoordsForm && (
-          <form onSubmit={handleAddCustomCoords} className="mt-2.5 space-y-2 duration-300">
+          <form onSubmit={handleAddCustomCoords} className="mt-3 space-y-2.5 duration-300">
             <div>
-              <label htmlFor="custom-coords-name" className={`text-[9px] font-mono block mb-0.5 ${
-                activeDarkMode ? 'text-white/40' : 'text-brand-blue/70 font-semibold'
+              <label htmlFor="custom-coords-name" className={`text-[9px] font-mono block mb-1 font-semibold ${
+                activeDarkMode ? 'text-white/50' : 'text-slate-600'
               }`}>NOMBRE UBICACIÓN</label>
               <input
                 id="custom-coords-name"
@@ -353,18 +193,18 @@ export default function FavoriteCitiesManager({
                 required
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
-                placeholder="Ej. Faro de Fisterra"
-                className={`w-full text-xs rounded-xl px-2.5 py-1.5 focus:outline-hidden border ${
+                placeholder="Ej. Faro de Maspalomas"
+                className={`w-full text-xs rounded-xl px-3 py-2 focus:outline-hidden border ${
                   activeDarkMode 
-                    ? 'bg-white/5 border-white/10 text-white placeholder-white/20 focus:border-white/20' 
-                    : 'bg-[#ffffff] border-slate-205 text-slate-805 placeholder-slate-400 focus:border-brand-blue/40 focus:ring-1 focus:ring-brand-blue/10'
+                    ? 'bg-[#14171a] border-white/10 text-white placeholder-white/30 focus:border-[#ffd600]' 
+                    : 'bg-white border-amber-300 text-slate-800 placeholder-slate-400 focus:border-[#f5cf00]'
                 }`}
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label htmlFor="custom-coords-lat" className={`text-[9px] font-mono block mb-0.5 ${
-                  activeDarkMode ? 'text-white/40' : 'text-brand-blue/70 font-semibold'
+                <label htmlFor="custom-coords-lat" className={`text-[9px] font-mono block mb-1 font-semibold ${
+                  activeDarkMode ? 'text-white/50' : 'text-slate-600'
                 }`}>LATITUD (-90 a 90)</label>
                 <input
                   id="custom-coords-lat"
@@ -373,17 +213,17 @@ export default function FavoriteCitiesManager({
                   required
                   value={customLat}
                   onChange={(e) => setCustomLat(e.target.value)}
-                  placeholder="Ej. 42.88"
-                  className={`w-full text-xs rounded-xl px-2.5 py-1.5 focus:outline-hidden border ${
+                  placeholder="Ej. 27.73"
+                  className={`w-full text-xs rounded-xl px-3 py-2 focus:outline-hidden border ${
                     activeDarkMode 
-                      ? 'bg-white/5 border-white/10 text-white placeholder-white/20 focus:border-white/20' 
-                      : 'bg-[#ffffff] border-slate-205 text-slate-805 placeholder-slate-400 focus:border-brand-blue/40 focus:ring-1 focus:ring-brand-blue/10'
+                      ? 'bg-[#14171a] border-white/10 text-white placeholder-white/30 focus:border-[#ffd600]' 
+                      : 'bg-white border-amber-300 text-slate-800 placeholder-slate-400 focus:border-[#f5cf00]'
                   }`}
                 />
               </div>
               <div>
-                <label htmlFor="custom-coords-lon" className={`text-[9px] font-mono block mb-0.5 ${
-                  activeDarkMode ? 'text-white/40' : 'text-brand-blue/70 font-semibold'
+                <label htmlFor="custom-coords-lon" className={`text-[9px] font-mono block mb-1 font-semibold ${
+                  activeDarkMode ? 'text-white/50' : 'text-slate-600'
                 }`}>LONGITUD (-180 a 180)</label>
                 <input
                   id="custom-coords-lon"
@@ -392,24 +232,24 @@ export default function FavoriteCitiesManager({
                   required
                   value={customLon}
                   onChange={(e) => setCustomLon(e.target.value)}
-                  placeholder="Ej. -9.26"
-                  className={`w-full text-xs rounded-xl px-2.5 py-1.5 focus:outline-hidden border ${
+                  placeholder="Ej. -15.58"
+                  className={`w-full text-xs rounded-xl px-3 py-2 focus:outline-hidden border ${
                     activeDarkMode 
-                      ? 'bg-white/5 border-white/10 text-white placeholder-white/20 focus:border-white/20' 
-                      : 'bg-[#ffffff] border-slate-205 text-slate-805 placeholder-slate-400 focus:border-brand-blue/40 focus:ring-1 focus:ring-brand-blue/10'
+                      ? 'bg-[#14171a] border-white/10 text-white placeholder-white/30 focus:border-[#ffd600]' 
+                      : 'bg-white border-amber-300 text-slate-800 placeholder-slate-400 focus:border-[#f5cf00]'
                   }`}
                 />
               </div>
             </div>
             <button
               type="submit"
-              className={`w-full py-2 rounded-xl text-xs font-semibold transition duration-300 cursor-pointer ${
+              className={`w-full py-2.5 rounded-full text-xs font-bold transition duration-200 cursor-pointer shadow-md ${
                 activeDarkMode 
-                  ? 'bg-white hover:bg-white/90 text-black shadow-lg' 
-                  : 'bg-brand-blue hover:bg-brand-blue-hover text-white shadow-md shadow-brand-blue/15'
+                  ? 'bg-[#ffd600] hover:bg-[#ffe066] text-[#1a1600]' 
+                  : 'bg-[#f5cf00] hover:bg-[#e0bd00] text-[#1a1600]'
               }`}
             >
-              Ubicación a Favoritos
+              Guardar en Favoritos
             </button>
           </form>
         )}

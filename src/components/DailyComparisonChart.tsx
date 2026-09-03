@@ -141,7 +141,7 @@ export default function DailyComparisonChart({ daily, tempUnit, activeDarkMode }
                               {item.name}:
                             </span>
                             <span className="font-bold">
-                              {item.value}°{tempUnit}
+                              {item.value}{tempUnit === 'C' ? '°C' : 'F'}
                             </span>
                           </div>
                         ))}

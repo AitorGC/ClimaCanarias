@@ -1,17 +1,113 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@100;200;300;400;500&family=JetBrains+Mono:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Roboto:wght@300;400;500;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Myriad Pro", "Myriad", "Myriad-Pro", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Myriad Pro", "Myriad", "Myriad-Pro", "Outfit", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  --color-brand-blue: #004993;
-  --color-brand-blue-hover: #003b77;
-  --color-brand-yellow: #ffd600;
-  --color-brand-yellow-hover: #e8c300;
+  --font-sans: "Plus Jakarta Sans", "Roboto", "Inter", system-ui, sans-serif;
+  --font-display: "Outfit", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-brand-yellow: #f5cf00;
+  --color-brand-yellow-hover: #e0bd00;
+  --color-brand-yellow-light: #fff5b8;
+  --color-brand-blue: #005b94;
 }
 
-body {
-  background-color: #000000;
-  color: #ffffff;
+@layer base {
+  :root {
+    /* MD3 Light Scheme - Canary Yellow (Amarillo Canario) + Atlantic Blue Accent */
+    --md-sys-color-primary: #d6a100;
+    --md-sys-color-on-primary: #1c1500;
+    --md-sys-color-primary-container: #fff0b3;
+    --md-sys-color-on-primary-container: #261c00;
+
+    --md-sys-color-secondary: #005b94;
+    --md-sys-color-on-secondary: #ffffff;
+    --md-sys-color-secondary-container: #d0e4ff;
+    --md-sys-color-on-secondary-container: #001d36;
+
+    --md-sys-color-tertiary: #006874;
+    --md-sys-color-on-tertiary: #ffffff;
+    --md-sys-color-tertiary-container: #97f0ff;
+    --md-sys-color-on-tertiary-container: #001f24;
+
+    --md-sys-color-surface: #fffdf5;
+    --md-sys-color-on-surface: #1c1c18;
+    --md-sys-color-surface-variant: #eae7d9;
+    --md-sys-color-on-surface-variant: #4a473a;
+
+    --md-sys-color-surface-container-lowest: #ffffff;
+    --md-sys-color-surface-container-low: #fcf9ec;
+    --md-sys-color-surface-container: #f7f3e1;
+    --md-sys-color-surface-container-high: #f1ebd7;
+    --md-sys-color-surface-container-highest: #ebe5d0;
+
+    --md-sys-color-outline: #7c7768;
+    --md-sys-color-outline-variant: #cdc8b7;
+
+    --md-sys-color-error: #ba1a1a;
+    --md-sys-color-error-container: #ffdad6;
+    --md-sys-color-on-error-container: #410002;
+  }
+
+  .dark {
+    /* MD3 Dark Scheme - Canary Yellow (Amarillo Canario) Night */
+    --md-sys-color-primary: #ffd600;
+    --md-sys-color-on-primary: #3a2e00;
+    --md-sys-color-primary-container: #544400;
+    --md-sys-color-on-primary-container: #ffe066;
+
+    --md-sys-color-secondary: #9ecdff;
+    --md-sys-color-on-secondary: #003257;
+    --md-sys-color-secondary-container: #004678;
+    --md-sys-color-on-secondary-container: #d0e4ff;
+
+    --md-sys-color-tertiary: #4fd8eb;
+    --md-sys-color-on-tertiary: #00363d;
+    --md-sys-color-tertiary-container: #004f58;
+    --md-sys-color-on-tertiary-container: #97f0ff;
+
+    --md-sys-color-surface: #14171a;
+    --md-sys-color-on-surface: #e8e5d8;
+    --md-sys-color-surface-variant: #4a473a;
+    --md-sys-color-on-surface-variant: #cdc8b7;
+
+    --md-sys-color-surface-container-lowest: #0e1114;
+    --md-sys-color-surface-container-low: #191c20;
+    --md-sys-color-surface-container: #1e2227;
+    --md-sys-color-surface-container-high: #292d33;
+    --md-sys-color-surface-container-highest: #34383e;
+
+    --md-sys-color-outline: #969181;
+    --md-sys-color-outline-variant: #4a473a;
+
+    --md-sys-color-error: #ffb4ab;
+    --md-sys-color-error-container: #93000a;
+    --md-sys-color-on-error-container: #ffdad6;
+  }
+}
+
+.md-card {
+  border-radius: 28px;
+  transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.md-card-sub {
+  border-radius: 20px;
+}
+
+.md-pill {
+  border-radius: 9999px;
+}
+
+.md-chip {
+  border-radius: 12px;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
